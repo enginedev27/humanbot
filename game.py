@@ -108,29 +108,32 @@ class HumanBot():
                 continue
             candidate_moves += 1
         unscaled_limit = chess.engine.Limit(time=remaining_time/(2*candidate_moves))
-        if unscaled_limit.time < 0.3 or candidate_moves == 1:
+        if candidate_moves == 1 or half_time.time < 1.5:
             return chess.engine.PlayResult(move=fallback_move, info={'pv': fallback_move}, ponder=None)
         for engine_info in master_analysis:
             if current_eval-20 > engine_info['score'].relative.score(mate_score=sys.maxsize):
                 continue
             move = engine_info['pv'][0]
             board.push(move)
-            start_time = time.time()
-            leela_analysis = self.leela.analysis(board, chess.engine.Limit(nodes=1), info=info, multipv=len(list(board.legal_moves)))
-            time_spent = time.time()-start_time
-            if unscaled_limit.time-time_spent > 0:
-                modified_limit = chess.engine.Limit(time=unscaled_limit.time-time_spent)
-                engine_analysis = self.engine.analyse(board, modified_limit, info=info, multipv=len(list(board.legal_moves)))
-                sub_dict = []
-                for info_string in leela_analysis:
-                    if 'string' in info_string:
-                        if 'node' not in info_string['string']:
-                            leela_move = info_string['string'].split("(")[0].strip()
-                            weight = float(info_string['string'].split("(P:")[1].split(")")[0].strip().replace("%", ""))
-                            for engine_move in engine_analysis:
-                                if engine_move['pv'][0].uci() == leela_move:
-                                    sub_dict.append([leela_move, -engine_move['score'].relative.score(mate_score=sys.maxsize), weight])
-                leela_moves[move.uci()] = sub_dict
+            if len(list(board.legal_moves)) != 0:
+                start_time = time.time()
+                leela_analysis = self.leela.analysis(board, chess.engine.Limit(nodes=1), info=info, multipv=len(list(board.legal_moves)))
+                time_spent = time.time()-start_time
+                if unscaled_limit.time-time_spent > 0:
+                    modified_limit = chess.engine.Limit(time=unscaled_limit.time-time_spent)
+                    engine_analysis = self.engine.analyse(board, modified_limit, info=info, multipv=len(list(board.legal_moves)))
+                    sub_dict = []
+                    for info_string in leela_analysis:
+                        if 'string' in info_string:
+                            if 'node' not in info_string['string']:
+                                leela_move = info_string['string'].split("(")[0].strip()
+                                weight = float(info_string['string'].split("(P:")[1].split(")")[0].strip().replace("%", ""))
+                                for engine_move in engine_analysis:
+                                    if engine_move['pv'][0].uci() == leela_move:
+                                        sub_dict.append([leela_move, -engine_move['score'].relative.score(mate_score=sys.maxsize), weight])
+                    leela_moves[move.uci()] = sub_dict
+                else:
+                    break_flag = True
             else:
                 break_flag = True
             board.pop()
@@ -180,6 +183,8 @@ class MaiaBot():
 #engine2 = FastStockfish(engines[player2]) if sys.argv[6] == 'black-custom' else chess.engine.SimpleEngine.popen_uci(engines[player2])
 engine1 = MaiaBot(engines[player1]) if sys.argv[6] == 'white-custom' else HumanBot(engines[player1])
 engine2 = MaiaBot(engines[player2]) if sys.argv[6] == 'black-custom' else HumanBot(engines[player2])
+#engine1 = MaiaBot(engines[player1]) if sys.argv[6] == 'white-custom' else chess.engine.SimpleEngine.popen_uci(engines[player1])
+#engine2 = MaiaBot(engines[player2]) if sys.argv[6] == 'black-custom' else chess.engine.SimpleEngine.popen_uci(engines[player2])
 
 threads = 1
 memory_size = 1000
@@ -212,9 +217,9 @@ game.headers["WhiteTitle"] = "BOT"
 game.headers["BlackTitle"] = "BOT"
 game.headers["Result"] = "*"
 print(game, file=open(f"{match}/game{board}.pgn", "w"), end="\n\n")
-white_clock = 60*3
-black_clock = 60*3
-inc = 3
+white_clock = 60*7
+black_clock = 60*7
+inc = 2
 opening_moves = sys.argv[5].split()
 while chess_board.is_game_over() == False and chess_board.can_claim_fifty_moves() == False:
     if len(chess_board.move_stack) < len(opening_moves):
