@@ -143,7 +143,7 @@ class HumanBot():
         for move, variation in leela_moves.items():
             sub_blunder = 0
             for moves in variation:
-                if moves[1]-current_eval >= 20:
+                if current_eval+20 < moves[1]:
                     sub_blunder += moves[2]
             blunder_chances[move] = sub_blunder
         max_blunder = 0
